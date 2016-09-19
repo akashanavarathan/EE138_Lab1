@@ -7,7 +7,7 @@
 
 // AKASH WAS HERE
 
-//EDIT test blah blah blah
+// SCOTT SAVED THE DAY
 
 //Include header files for all drivers
 #include <asf.h>
@@ -22,6 +22,7 @@ int Array_to_Integer();
 void Integer_to_Array(int finalCounter);
 
 
+
 // State Definitions
 #define idle 0
 #define key_press_debounce 1
@@ -29,6 +30,9 @@ void Integer_to_Array(int finalCounter);
 #define key_press_release 3
 #define null_value 25
 #define del 11
+#define equals 100
+#define add 90
+#define subtract 91
 
 volatile int display_array[4] = {10,10,10,10}; // Array used to hold values displayed; 10 refers to display nothing
 volatile int key_press_value = 0; // Variable for storing button press value
@@ -48,6 +52,7 @@ int digit1 = 0;
 int digit2 = 0;
 int digit3 = 0;
 int digit4 = 0;
+
 
 int main(void)
 {
@@ -139,6 +144,39 @@ void keypad_state_machine()
 				{
 					key_press_segment--;
 				}
+			}
+			
+			if(key_press_value == equals)
+			{
+				
+				secondValue = Array_to_Integer();
+				secondValue = secondValue - firstValue;
+				
+				integerValue = 0;
+				
+				if (operation == add)
+				{
+					result = firstValue + secondValue;
+				}
+				if (operation == subtract)
+				{
+					result = firstValue - secondValue;
+				}
+				
+				for(int m = 0; m < 4; m++)
+				{
+					display_array[m] = 10;
+				}
+				
+				key_press_segment = 0;
+				firstValue = 0;
+				secondValue = 0;
+				
+				display_result = result;
+				result = 0;
+				
+				Integer_to_Array(display_result);
+				
 			}
 			if(key_press_segment == 4)
 				key_press_segment = 0; // Reset Array Counter
@@ -285,29 +323,9 @@ int keypad_scan()
 			if(porA->IN.reg & PORT_PA16) // C KEY
 			{
 				
-				secondValue = Array_to_Integer() - firstValue;
-				if (operation == add)
-				{
-					result = firstValue + secondValue;
-				}
-				if (operation == subtract)
-				{
-					result = firstValue - secondValue;
-				}
-				key_press_value = 10;
-				for(int m = 0; m < 4; m++)
-				{
-					display_array[m] = 10;
-				}
 				
-				key_press_segment = 0;
-				firstValue = 0;
-				secondValue = 0;
 				
-				display_result = result;
-				result = 0;
-				
-				Integer_to_Array(display_result);
+				key_press_value = equals;
 				
 			}
 		}
@@ -416,6 +434,9 @@ void displayLED(int digit)
 
 int Array_to_Integer()
 {
+	
+	
+	multiplier = 1;
 	for(int k = 3; k >= 0; k--)
 	{
 		if(display_array[k] < 10)
@@ -428,8 +449,10 @@ int Array_to_Integer()
 	return integerValue;
 }
 
+
 void Integer_to_Array(int resultValue)
 {
+	
 	int newCounter = 0;
 	
 	if(resultValue >= 1000)
