@@ -2,7 +2,7 @@
 *  Scott Herring and Akash Anavarathan
 *  EE 138: Embedded Systems
 *  September 14, 2016
-*  A: Add, B: Subtract, C: Equals, D: Backspace
+*  A: Add, B: Subtract, C: Equals, D: Backspace, *: Negative
 */
 
 // AKASH WAS HERE
