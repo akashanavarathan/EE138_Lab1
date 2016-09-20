@@ -5,10 +5,6 @@
 *  A: Add, B: Subtract, C: Equals, D: Backspace
 */
 
-// AKASH WAS HERE
-
-// SCOTT SAVED THE DAY
-
 //Include header files for all drivers
 #include <asf.h>
 
@@ -20,8 +16,6 @@ void Simple_Clk_Init(void);
 void wait(int t);
 int Array_to_Integer();
 void Integer_to_Array(int finalCounter);
-
-
 
 // State Definitions
 #define idle 0
@@ -158,6 +152,8 @@ void keypad_state_machine()
 				{
 					secondValue = secondValue * -1;
 				}
+				
+				valueSign = positive;
 				integerValue = 0;
 				
 				if (operation == add)
@@ -181,12 +177,13 @@ void keypad_state_machine()
 				display_result = result;
 				result = 0;
 				
-				Integer_to_Array(display_result);
-				
-				if(valueSign = negative)
+				if(display_result != abs(display_result))
 				{
+					display_result = display_result * -1;
 					porB->OUTCLR.reg = PORT_PB09;
 				}
+				
+				Integer_to_Array(display_result);
 				
 			}
 			
@@ -283,6 +280,8 @@ int keypad_scan()
 				{
 					firstValue = firstValue * -1;
 				}
+				porB->OUTSET.reg = PORT_PB09;
+				valueSign = positive;
 				key_press_value = 10;
 				for(int l = 0; l < 4; l++)
 				{
@@ -314,6 +313,8 @@ int keypad_scan()
 				operation = subtract;
 				firstValue = Array_to_Integer();
 				key_press_value = 10;
+				porB->OUTSET.reg = PORT_PB09;
+				valueSign = positive;
 				if(valueSign = negative)
 				{
 					firstValue = firstValue * -1;
@@ -346,6 +347,7 @@ int keypad_scan()
 			if(porA->IN.reg & PORT_PA16) // C KEY
 			{
 				key_press_value = equals;
+				porB->OUTSET.reg = PORT_PB09;
 				
 			}
 		}
@@ -358,6 +360,7 @@ int keypad_scan()
 			{
 				key_press_value = negative;
 				valueSign = negative;
+				porB->OUTCLR.reg = PORT_PB09;
 			}
 			if(porA->IN.reg & PORT_PA18) // 0 KEY
 			{
@@ -366,6 +369,7 @@ int keypad_scan()
 			if(porA->IN.reg & PORT_PA16) // D KEY
 			{
 				key_press_value = del;
+				porB->OUTSET.reg = PORT_PB09;
 			}
 		}
 	}	
