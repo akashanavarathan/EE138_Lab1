@@ -33,6 +33,8 @@ void Integer_to_Array(int finalCounter);
 #define equals 100
 #define add 90
 #define subtract 91
+#define negative 101
+#define positive 102
 
 volatile int display_array[4] = {10,10,10,10}; // Array used to hold values displayed; 10 refers to display nothing
 volatile int key_press_value = 0; // Variable for storing button press value
@@ -47,6 +49,7 @@ int integerValue = 0;
 int multiplier = 1;
 int operation = 0;
 volatile int display_result = 0;
+int valueSign = positive;
 
 int digit1 = 0;
 int digit2 = 0;
@@ -148,10 +151,13 @@ void keypad_state_machine()
 			
 			if(key_press_value == equals)
 			{
-				
 				secondValue = Array_to_Integer();
 				secondValue = secondValue - firstValue;
 				
+				if(valueSign = negative)
+				{
+					secondValue = secondValue * -1;
+				}
 				integerValue = 0;
 				
 				if (operation == add)
@@ -177,7 +183,14 @@ void keypad_state_machine()
 				
 				Integer_to_Array(display_result);
 				
+				if(valueSign = negative)
+				{
+					porB->OUTCLR.reg = PORT_PB09;
+				}
+				
 			}
+			
+			
 			if(key_press_segment == 4)
 				key_press_segment = 0; // Reset Array Counter
 			
@@ -266,12 +279,17 @@ int keypad_scan()
 			{
 				operation = add;
 				firstValue = Array_to_Integer();
+				if(valueSign = negative)
+				{
+					firstValue = firstValue * -1;
+				}
 				key_press_value = 10;
 				for(int l = 0; l < 4; l++)
 				{
 					display_array[l] = 10;
 				}
 				key_press_segment = 0;
+				valueSign = positive;
 			}
 		}
 		if(row == 1)
@@ -296,11 +314,16 @@ int keypad_scan()
 				operation = subtract;
 				firstValue = Array_to_Integer();
 				key_press_value = 10;
+				if(valueSign = negative)
+				{
+					firstValue = firstValue * -1;
+				}
 				for(int l = 0; l < 4; l++)
 				{
 					display_array[l] = 10;
 				}
 				key_press_segment = 0;
+				valueSign = positive;
 			}
 		}
 		if(row == 2)
@@ -322,9 +345,6 @@ int keypad_scan()
 			}
 			if(porA->IN.reg & PORT_PA16) // C KEY
 			{
-				
-				
-				
 				key_press_value = equals;
 				
 			}
@@ -334,6 +354,11 @@ int keypad_scan()
 			porA->OUTCLR.reg = PORT_PA04;
 			porA->OUTSET.reg = PORT_PA07 | PORT_PA06 | PORT_PA05;
 			wait(2);
+			if(porA->IN.reg & PORT_PA19) // * KEY
+			{
+				key_press_value = negative;
+				valueSign = negative;
+			}
 			if(porA->IN.reg & PORT_PA18) // 0 KEY
 			{
 				key_press_value = 0;
