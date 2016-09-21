@@ -144,10 +144,19 @@ void keypad_state_machine()
 					key_press_segment = 3; // If you're on segment 0, then go back to 3. (which would be the last one entered)
 				}
 			}
+			
+			if (key_press_value == equals)
+			{
+				key_press_segment = 5;
+			}
+			
 			display_array[key_press_segment] = key_press_value; // Store key press value into the array
 			key_press_segment++; // Increment Array Counter
 			
-			
+			if (key_press_value == equals)
+			{
+				key_press_segment = 0;
+			}
 			
 			if(key_press_value == del)			
 			{
