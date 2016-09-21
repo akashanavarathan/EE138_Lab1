@@ -1,31 +1,26 @@
 /* Lab 1 Task 3: Calculator on the GPIO Board
 *  Scott Herring and Akash Anavarathan
 *  EE 138: Embedded Systems
-*  September 14, 2016
-*  A: Add, B: Subtract, C: Equals, D: Backspace, *: Negative
+*  September 20, 2016
+*  A: Add, B: Subtract, C: Equals, D: Backspace, *: Negative, #: Multiply
+*  Error Message will display if resulting value exceeds +/- 9,999
 */
-
-// AKASH WAS HERE
-
-// SCOTT SAVED THE DAY
-
-// push test
 
 //Include header files for all drivers
 #include <asf.h>
 
-void keypad_state_machine();
-void overallDisplay();
-int keypad_scan();
-void displayLED(int digit);
-void Simple_Clk_Init(void);
-void wait(int t);
-int Array_to_Integer();
-void Integer_to_Array(int finalCounter);
+void keypad_state_machine(); // Main function that will switch through the four primary states.
+void overallDisplay(); // Will be used to display the digits on the 7-segment displays
+int keypad_scan(); // Detect key presses
+void displayLED(int digit); // Display specific segments, used in overallDisplay()
+void Simple_Clk_Init(void); // Initialize Clk, given code
+void wait(int t); // Wait function, given code
+int Array_to_Integer(); // Convert from Array to Integer for the Calculator
+void Integer_to_Array(int finalCounter); // Convert from Integer back to Array for Display
 
 
 // State Definitions
-#define idle 0
+#define idle 0 
 #define key_press_debounce 1
 #define process_input 2
 #define key_press_release 3
@@ -37,22 +32,24 @@ void Integer_to_Array(int finalCounter);
 #define negative 101
 #define positive 102
 #define clear 500
+#define multiply 92
 
 volatile int display_array[4] = {10,10,10,10}; // Array used to hold values displayed; 10 refers to display nothing
 volatile int key_press_value = 0; // Variable for storing button press value
 volatile int key_press_value_last = 0;
-volatile int state = 0;
+volatile int state = 0; // Used for the 4 states
 int debounce_counter = 0;
 int key_press_segment = 0; // Variable for which 7-segment display 
-int firstValue = 0;
-int secondValue = 0;
-int result = 0;
+int firstValue = 0; // Used in calculation
+int secondValue = 0; // Used in calculation
+int result = 0; // Stores the resulting answer for calculation
 int integerValue = 0;
-int multiplier = 1;
-int operation = 0;
-volatile int display_result = 0;
-int valueSign = positive;
+int multiplier = 1; // Used to convert Array to Integer
+int operation = 0; // Used to determine the proper operation (Add, Subtract, Multiply)
+volatile int display_result = 0; // Value passed into the Integer_to_Array function
+int valueSign = positive; // Variable used to determine if negative/positive. Always positive, unless set to negative when * is pressed.
 
+// Values used in the Integer_to_Array function to pass into array
 int digit1 = 0;
 int digit2 = 0;
 int digit3 = 0;
@@ -96,6 +93,7 @@ void keypad_state_machine()
 	PortGroup *porA = &(ports->Group[0]);
 	PortGroup *porB = &(ports->Group[1]);
 	
+	// Set the Displays and LED as outputs
 	porA->DIRSET.reg = PORT_PA04 | PORT_PA05 | PORT_PA06 | PORT_PA07; 
 	porB->DIRSET.reg = PORT_PB09;
 	
@@ -133,53 +131,58 @@ void keypad_state_machine()
 			break;
 		
 		case process_input:
-			if(key_press_value == del)			
+			if(key_press_value == del) // If you're trying to delete a value, it needs to properly increment/decrement the segments
 			{
 				if(key_press_segment > 0)
 				{
-					key_press_segment--;	
+					key_press_segment--; // If you're on segment 1, 2, 3, then move back one
 				}
 				else if(key_press_segment == 0)
 				{
-					key_press_segment = 3;
+					key_press_segment = 3; // If you're on segment 0, then go back to 3. (which would be the last one entered)
 				}
 			}
 			display_array[key_press_segment] = key_press_value; // Store key press value into the array
 			key_press_segment++; // Increment Array Counter
 			if(key_press_value == del)			
 			{
-				if(key_press_segment > 0)
+				if(key_press_segment > 0) // Since blank value is entered, go back to the last spot, so new values entered begins from there
 				{
 					key_press_segment--;
 				}
 			}
 			
-			if(key_press_value == equals)
+			if(key_press_value == equals) // If equals (C) for calculator is pressed
 			{
 				
-				secondValue = Array_to_Integer();
-				secondValue = secondValue - firstValue;
+				secondValue = Array_to_Integer(); // Get integer for second value
+				secondValue = secondValue - firstValue; // Account for difference, actual second value
 				
 				if(valueSign == negative)
 				{
-					secondValue = secondValue * -1;
+					secondValue = secondValue * -1; // If negative, multiply by -1; LED should be on to indicate negative.
 				}
-				integerValue = 0;
+				integerValue = 0; // reset IntegerValue, used within Array_to_Integer
 				
 				if (operation == add)
 				{
-					result = firstValue + secondValue;
+					result = firstValue + secondValue; // Add, if A was pressed before equals
 				}
 				if (operation == subtract)
 				{
-					result = firstValue - secondValue;
+					result = firstValue - secondValue; // Subtract is B was pressed before equals
+				}
+				if(operation == multiply)
+				{
+					result = firstValue * secondValue; // Multiply if # was selected before equals
 				}
 				
 				for(int m = 0; m < 4; m++)
 				{
-					display_array[m] = 10;
+					display_array[m] = 10; // Clear out the Segments, before displaying the proper value
 				}
 				
+				// Reset all the values; Start from Left-Most Segment
 				key_press_segment = 0;
 				firstValue = 0;
 				secondValue = 0;
@@ -187,18 +190,18 @@ void keypad_state_machine()
 				display_result = result;
 				result = 0;
 				
-				
+				// If result is negative, then turn on LED again to show it's a negative answer
 				if(display_result < 0)
 				{
 					display_result = display_result * -1;
 					porB->OUTCLR.reg = PORT_PB09;
 				}
 				
-				Integer_to_Array(display_result);
+				Integer_to_Array(display_result); // Convert the integer back into Array and display those values
 				
 				if(valueSign == negative)
 				{
-					porB->OUTCLR.reg = PORT_PB09;
+					porB->OUTCLR.reg = PORT_PB09; // In general, if value entered negative turn on the LED
 				}
 				
 				
@@ -210,17 +213,6 @@ void keypad_state_machine()
 			
 			debounce_counter = 0;
 			state = key_press_release; // Change state
-			
-			if(key_press_value == clear)
-			{
-				porB->OUTSET.reg = PORT_PB09;
-				for(int g = 0; g < 4; g++)
-				{
-					display_array[g] = 10;
-				}
-				porB->OUTSET.reg = PORT_PB09;
-				key_press_segment = 0;
-			}
 			
 			break;
 		
@@ -304,21 +296,23 @@ int keypad_scan()
 			}
 			if(porA->IN.reg & PORT_PA16) // A KEY
 			{
-				operation = add;
-				firstValue = Array_to_Integer();
+				operation = add; // Set the operation as Add
+				firstValue = Array_to_Integer(); // Get the first Integer value from the Array
+				
+				// When negative, change the values to be negative
 				if(valueSign == negative)
 				{
 					firstValue = firstValue * -1;
 					integerValue = integerValue * -1;
 				}
-				key_press_value = 10;
+				key_press_value = 10; // Fill the array with Blank Values
 				for(int l = 0; l < 4; l++)
 				{
 					display_array[l] = 10;
 				}
-				key_press_segment = 0;
-				valueSign = positive;
-				porB-> OUTSET.reg = PORT_PB09;
+				key_press_segment = 0; // Reset the segment, so it starts at the Left-Most
+				valueSign = positive; // Reset the valueSign, so that it knows it's positive for the next value, unless * is pressed
+				porB-> OUTSET.reg = PORT_PB09; // Turn off the LED to indicate sign
 			}
 		}
 		if(row == 1)
@@ -340,9 +334,12 @@ int keypad_scan()
 			}
 			if(porA->IN.reg & PORT_PA16) // B KEY
 			{
-				operation = subtract;
-				firstValue = Array_to_Integer();
-				key_press_value = 10;
+				operation = subtract; // Set the operation as Subtract
+				firstValue = Array_to_Integer(); // Get the first Integer value from the Array
+				
+				key_press_value = 10; // Fill the array with Blank Values
+				
+				// When negative, change the values to be negative
 				if(valueSign == negative)
 				{
 					firstValue = firstValue * -1;
@@ -352,10 +349,10 @@ int keypad_scan()
 				{
 					display_array[l] = 10;
 				}
-				key_press_segment = 0;
-				valueSign = positive;
+				key_press_segment = 0; // Reset to make it the Left-Most Segment
+				valueSign = positive; // Reset the valueSign so it knows to be positive unless * is pressed
 				
-				porB-> OUTSET.reg = PORT_PB09;
+				porB-> OUTSET.reg = PORT_PB09; // Turn off LED to indicate sign
 			}
 		}
 		if(row == 2)
@@ -377,9 +374,7 @@ int keypad_scan()
 			}
 			if(porA->IN.reg & PORT_PA16) // C KEY
 			{
-				key_press_value = equals;
-				
-				
+				key_press_value = equals; // Will be used to determine resulting value
 			}
 		}
 		if(row == 3)
@@ -389,9 +384,9 @@ int keypad_scan()
 			wait(2);
 			if(porA->IN.reg & PORT_PA19) // * KEY
 			{
-				key_press_value = negative;
-				valueSign = negative;
-				porB->OUTCLR.reg = PORT_PB09;
+				key_press_value = negative; // States that key_press_value is for Blank's
+				valueSign = negative; // Sign should be negative
+				porB->OUTCLR.reg = PORT_PB09; // Turn on LED to indicate that it's a negative value
 			}
 			if(porA->IN.reg & PORT_PA18) // 0 KEY
 			{
@@ -399,17 +394,32 @@ int keypad_scan()
 			}
 			if(porA->IN.reg & PORT_PA17) // # key
 			{
-				key_press_value = clear;
+				operation = multiply; // Set the operation to multiply
+				firstValue = Array_to_Integer(); // Get the first integer value from the array
+				key_press_value = 10; // Fill the array with blank'same
+				
+				// If negative, then change value to negative
+				if(valueSign == negative)
+				{
+					firstValue = firstValue * -1;
+					integerValue = integerValue * -1;
+				}
+				for(int l = 0; l < 4; l++)
+				{
+					display_array[l] = 10;
+				}
+				key_press_segment = 0; // Reset the segment to the Left-Most segment
+				valueSign = positive; // Reset valueSign to be positive, unless the * is pressed.
+				
+				porB-> OUTSET.reg = PORT_PB09; // Turn off the LED to indicate that it's not positive.
 			}
 			if(porA->IN.reg & PORT_PA16) // D KEY
 			{
-				key_press_value = del;
+				key_press_value = del; // Used for backspace of Numbers
 			}
 		}
 	}	
-	
-	
-	
+
 	return key_press_value;	
 }
 
@@ -489,6 +499,14 @@ void displayLED(int digit)
 		// Display Nothing and indicate Deleted Value
 		case 11:
 		porB-> OUTSET.reg = PORT_PB00 | PORT_PB02 | PORT_PB01 | PORT_PB03 | PORT_PB04 | PORT_PB05 | PORT_PB06;
+		
+		case 50: // Display E (lowercase) for Error Message
+		porB-> OUTSET.reg = PORT_PB02;
+		porB-> OUTCLR.reg = PORT_PB00 | PORT_PB01 | PORT_PB03 | PORT_PB04 | PORT_PB05 | PORT_PB06;
+		
+		case 51: // Display R (lowercase) for Error Message
+		porB-> OUTSET.reg = PORT_PB01 | PORT_PB02 | PORT_PB03 | PORT_PB06;
+		porB-> OUTCLR.reg = PORT_PB00 | PORT_PB04 | PORT_PB05;
 	}
 	
 	wait(2);
@@ -497,9 +515,7 @@ void displayLED(int digit)
 
 int Array_to_Integer()
 {
-	
-	
-	multiplier = 1;
+	multiplier = 1; // Always reset Multiplier to 1 every time function is called
 	for(int k = 3; k >= 0; k--)
 	{
 		if(display_array[k] < 10)
@@ -514,10 +530,16 @@ int Array_to_Integer()
 
 void Integer_to_Array(int resultValue)
 {
-	
 	int newCounter = 0;
-	
-	if(resultValue >= 1000)
+
+	if(resultValue > 9999) // If it's greater than 9999, display 'erro' to indicate that we can't display the final value
+	{
+		digit1 = 50; // Will display E
+		digit2 = 51; // Will display R
+		digit3 = 51; // Will display R
+		digit4 = 0;
+	}
+	else if(resultValue >= 1000 && resultValue <= 9999)
 	{
 		digit1 = resultValue / 1000;
 		newCounter = (resultValue - (digit1*1000));
@@ -553,6 +575,7 @@ void Integer_to_Array(int resultValue)
 		digit4 = resultValue;
 	}
 	
+	// Set the Array to hold the proper digits, which will displayed.
 	display_array[0] = digit1;
 	display_array[1] = digit2;
 	display_array[2] = digit3;
