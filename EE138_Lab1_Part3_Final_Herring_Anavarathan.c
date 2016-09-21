@@ -131,6 +131,8 @@ void keypad_state_machine()
 			break;
 		
 		case process_input:
+			
+			
 			if(key_press_value == del) // If you're trying to delete a value, it needs to properly increment/decrement the segments
 			{
 				if(key_press_segment > 0)
@@ -144,6 +146,9 @@ void keypad_state_machine()
 			}
 			display_array[key_press_segment] = key_press_value; // Store key press value into the array
 			key_press_segment++; // Increment Array Counter
+			
+			
+			
 			if(key_press_value == del)			
 			{
 				if(key_press_segment > 0) // Since blank value is entered, go back to the last spot, so new values entered begins from there
@@ -154,6 +159,8 @@ void keypad_state_machine()
 			
 			if(key_press_value == equals) // If equals (C) for calculator is pressed
 			{
+				
+				porB-> OUTSET.reg = PORT_PB09; // Turn off the LED to indicate that it's not positive.
 				
 				secondValue = Array_to_Integer(); // Get integer for second value
 				secondValue = secondValue - firstValue; // Account for difference, actual second value
@@ -199,10 +206,7 @@ void keypad_state_machine()
 				
 				Integer_to_Array(display_result); // Convert the integer back into Array and display those values
 				
-				if(valueSign == negative)
-				{
-					porB->OUTCLR.reg = PORT_PB09; // In general, if value entered negative turn on the LED
-				}
+				
 				
 				
 			}
@@ -213,6 +217,12 @@ void keypad_state_machine()
 			
 			debounce_counter = 0;
 			state = key_press_release; // Change state
+			
+			if(key_press_value == negative)
+			{
+				key_press_segment = 0;
+				key_press_value = positive;
+			}
 			
 			break;
 		
@@ -374,6 +384,7 @@ int keypad_scan()
 			}
 			if(porA->IN.reg & PORT_PA16) // C KEY
 			{
+				
 				key_press_value = equals; // Will be used to determine resulting value
 			}
 		}
@@ -387,6 +398,8 @@ int keypad_scan()
 				key_press_value = negative; // States that key_press_value is for Blank's
 				valueSign = negative; // Sign should be negative
 				porB->OUTCLR.reg = PORT_PB09; // Turn on LED to indicate that it's a negative value
+				
+				
 			}
 			if(porA->IN.reg & PORT_PA18) // 0 KEY
 			{
@@ -412,6 +425,7 @@ int keypad_scan()
 				valueSign = positive; // Reset valueSign to be positive, unless the * is pressed.
 				
 				porB-> OUTSET.reg = PORT_PB09; // Turn off the LED to indicate that it's not positive.
+				
 			}
 			if(porA->IN.reg & PORT_PA16) // D KEY
 			{
@@ -495,18 +509,26 @@ void displayLED(int digit)
 		// Display Nothing
 		case 10:
 		porB-> OUTSET.reg = PORT_PB00 | PORT_PB02 | PORT_PB01 | PORT_PB03 | PORT_PB04 | PORT_PB05 | PORT_PB06;
+		break;
 		
 		// Display Nothing and indicate Deleted Value
 		case 11:
 		porB-> OUTSET.reg = PORT_PB00 | PORT_PB02 | PORT_PB01 | PORT_PB03 | PORT_PB04 | PORT_PB05 | PORT_PB06;
+		break;
 		
-		case 50: // Display E (lowercase) for Error Message
-		porB-> OUTSET.reg = PORT_PB02;
-		porB-> OUTCLR.reg = PORT_PB00 | PORT_PB01 | PORT_PB03 | PORT_PB04 | PORT_PB05 | PORT_PB06;
+		case 50: // Display E (uppercase) for Error Message
+		porB-> OUTSET.reg = PORT_PB02 | PORT_PB01;
+		porB-> OUTCLR.reg = PORT_PB00 | PORT_PB03 | PORT_PB04 | PORT_PB05 | PORT_PB06;
+		break;
 		
 		case 51: // Display R (lowercase) for Error Message
-		porB-> OUTSET.reg = PORT_PB01 | PORT_PB02 | PORT_PB03 | PORT_PB06;
-		porB-> OUTCLR.reg = PORT_PB00 | PORT_PB04 | PORT_PB05;
+		porB-> OUTSET.reg = PORT_PB01 | PORT_PB02 | PORT_PB03 | PORT_PB05 | PORT_PB00;
+		porB-> OUTCLR.reg = PORT_PB04 | PORT_PB06;
+		break;
+		
+		case 52: //Display O (lowercase) for Error Message
+		porB-> OUTSET.reg = PORT_PB00 | PORT_PB01 | PORT_PB05;
+		porB-> OUTCLR.reg = PORT_PB02 | PORT_PB03 | PORT_PB04 | PORT_PB06;
 	}
 	
 	wait(2);
@@ -535,9 +557,9 @@ void Integer_to_Array(int resultValue)
 	if(resultValue > 9999) // If it's greater than 9999, display 'erro' to indicate that we can't display the final value
 	{
 		digit1 = 50; // Will display E
-		digit2 = 51; // Will display R
-		digit3 = 51; // Will display R
-		digit4 = 0;
+		digit2 = 51; // Will display r
+		digit3 = 51; // Will display r
+		digit4 = 52; // Will display o
 	}
 	else if(resultValue >= 1000 && resultValue <= 9999)
 	{
