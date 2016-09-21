@@ -22,7 +22,6 @@ int Array_to_Integer();
 void Integer_to_Array(int finalCounter);
 
 
-
 // State Definitions
 #define idle 0
 #define key_press_debounce 1
@@ -35,6 +34,7 @@ void Integer_to_Array(int finalCounter);
 #define subtract 91
 #define negative 101
 #define positive 102
+#define clear 500
 
 volatile int display_array[4] = {10,10,10,10}; // Array used to hold values displayed; 10 refers to display nothing
 volatile int key_press_value = 0; // Variable for storing button press value
@@ -92,8 +92,10 @@ void keypad_state_machine()
 {
 	Port *ports = PORT_INSTS;										
 	PortGroup *porA = &(ports->Group[0]);
+	PortGroup *porB = &(ports->Group[1]);
 	
 	porA->DIRSET.reg = PORT_PA04 | PORT_PA05 | PORT_PA06 | PORT_PA07; 
+	porB->DIRSET.reg = PORT_PB09;
 	
 	switch(state)
 	{
@@ -107,6 +109,7 @@ void keypad_state_machine()
 			break;
 		
 		case key_press_debounce:
+		
 			key_press_value = keypad_scan(); // Check button press value
 			if(key_press_value == key_press_value_last) // See if it's the same as the old value
 			{	
@@ -151,10 +154,11 @@ void keypad_state_machine()
 			
 			if(key_press_value == equals)
 			{
+				
 				secondValue = Array_to_Integer();
 				secondValue = secondValue - firstValue;
 				
-				if(valueSign = negative)
+				if(valueSign == negative)
 				{
 					secondValue = secondValue * -1;
 				}
@@ -181,12 +185,20 @@ void keypad_state_machine()
 				display_result = result;
 				result = 0;
 				
+				
+				if(display_result < 0)
+				{
+					display_result = display_result * -1;
+					porB->OUTCLR.reg = PORT_PB09;
+				}
+				
 				Integer_to_Array(display_result);
 				
-				if(valueSign = negative)
+				if(valueSign == negative)
 				{
 					porB->OUTCLR.reg = PORT_PB09;
 				}
+				
 				
 			}
 			
@@ -196,6 +208,17 @@ void keypad_state_machine()
 			
 			debounce_counter = 0;
 			state = key_press_release; // Change state
+			
+			if(key_press_value == clear)
+			{
+				porB->OUTSET.reg = PORT_PB09;
+				for(int g = 0; g < 4; g++)
+				{
+					display_array[g] = 10;
+				}
+				porB->OUTSET.reg = PORT_PB09;
+				key_press_segment = 0;
+			}
 			
 			break;
 		
@@ -249,8 +272,10 @@ int keypad_scan()
 	Port *ports = PORT_INSTS;
 	
 	PortGroup *porA = &(ports->Group[0]);
+	PortGroup *porB = &(ports->Group[1]);
 	porA-> DIRSET.reg = PORT_PA07 | PORT_PA06 | PORT_PA05 | PORT_PA04; // Direction Set for the LEDs
 	porA-> DIRCLR.reg = PORT_PA19 | PORT_PA18 | PORT_PA17 | PORT_PA16;
+	porB-> DIRSET.reg = PORT_PB09; 
 	
 	porA-> OUTCLR.reg = PORT_PA19 | PORT_PA18 | PORT_PA17 | PORT_PA16;
 	
@@ -279,9 +304,10 @@ int keypad_scan()
 			{
 				operation = add;
 				firstValue = Array_to_Integer();
-				if(valueSign = negative)
+				if(valueSign == negative)
 				{
 					firstValue = firstValue * -1;
+					integerValue = integerValue * -1;
 				}
 				key_press_value = 10;
 				for(int l = 0; l < 4; l++)
@@ -290,6 +316,7 @@ int keypad_scan()
 				}
 				key_press_segment = 0;
 				valueSign = positive;
+				porB-> OUTSET.reg = PORT_PB09;
 			}
 		}
 		if(row == 1)
@@ -314,9 +341,10 @@ int keypad_scan()
 				operation = subtract;
 				firstValue = Array_to_Integer();
 				key_press_value = 10;
-				if(valueSign = negative)
+				if(valueSign == negative)
 				{
 					firstValue = firstValue * -1;
+					integerValue = integerValue * -1;
 				}
 				for(int l = 0; l < 4; l++)
 				{
@@ -324,6 +352,8 @@ int keypad_scan()
 				}
 				key_press_segment = 0;
 				valueSign = positive;
+				
+				porB-> OUTSET.reg = PORT_PB09;
 			}
 		}
 		if(row == 2)
@@ -347,6 +377,7 @@ int keypad_scan()
 			{
 				key_press_value = equals;
 				
+				
 			}
 		}
 		if(row == 3)
@@ -358,10 +389,15 @@ int keypad_scan()
 			{
 				key_press_value = negative;
 				valueSign = negative;
+				porB->OUTCLR.reg = PORT_PB09;
 			}
 			if(porA->IN.reg & PORT_PA18) // 0 KEY
 			{
 				key_press_value = 0;
+			}
+			if(porA->IN.reg & PORT_PA17) // # key
+			{
+				key_press_value = clear;
 			}
 			if(porA->IN.reg & PORT_PA16) // D KEY
 			{
@@ -474,7 +510,6 @@ int Array_to_Integer()
 	return integerValue;
 }
 
-
 void Integer_to_Array(int resultValue)
 {
 	
@@ -508,7 +543,7 @@ void Integer_to_Array(int resultValue)
 		newCounter = (resultValue - digit3*10);
 		digit4 = newCounter;
 	}
-	else if(resultValue < 10 && resultValue >= 0)
+	else if(resultValue < 10 && resultValue >= 0) 
 	{
 		digit1 = 0;
 		digit2 = 0;
