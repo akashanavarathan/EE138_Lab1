@@ -1,7 +1,7 @@
 /* Lab 1 Task 3: Calculator on the GPIO Board
 *  Scott Herring and Akash Anavarathan
 *  EE 138: Embedded Systems
-*  September 20, 2016
+*  September 21, 2016
 *  A: Add, B: Subtract, C: Equals, D: Backspace, *: Negative, #: Multiply
 *  Error Message will display if resulting value exceeds +/- 9,999
 */
