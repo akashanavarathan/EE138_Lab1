@@ -7,27 +7,27 @@
 
 #include <asf.h>
 
-void Simple_Clock_Init(void);
+void Simple_Clk_Init(void);
 void enable_adc_clocks(void);
 void init_adc(void);
 PortGroup *porta = (PortGroup *)PORT;
-PortGroup *portadc = (PortGroup *)ADC;		// define a pointer to the ADC block
+Adc *portadc = ADC;		// define a pointer to the ADC block
 
 unsigned int read_adc(void)
 {
 
 	// start the conversion
-		// SWTRIG.reg = ;
+	portadc->SWTRIG.reg = (1u << 1);
 		
-	while(!//INTFLAG.bit.RESRDY);			//wait for conversion to be available
+	while(portadc->INTFLAG.bit.RESRDY != 0);		//wait for conversion to be available
 	
-	return( ); 					//insert register where ADC store value
+	return(portadc->RESULT.reg); 					//insert register where ADC store value
 	
 }
 
 int main (void)
 {	
-	Simple_Clock_Init();
+	Simple_Clk_Init();
 	enable_adc_clocks();
 	init_adc();
 		
@@ -35,7 +35,7 @@ int main (void)
 	
 	while(1)
 	{
-			x = read_adc();			//store variable from ADC into variable "x"
+			x = read_adc();		//store variable from ADC into variable "x"
 	}
 }
 
@@ -44,7 +44,7 @@ void enable_adc_clocks(void)
 {
 	PM->APBCMASK.reg |= (1u << 16); 			// PM_APBCMASK_______ is in the ___ position
 	
-	uint32_t temp = ________; 			// ID for ________ is__________ (see table 14-2)
+	uint32_t temp = 0x17; 			// ID for ________ is__________ (see table 14-2)
 	temp |= 0<<8; 					// Selection Generic clock generator 0
 	GCLK->CLKCTRL.reg = temp; 			// Setup in the CLKCTRL register
 	GCLK->CLKCTRL.reg |= 0x1u << 14; 		// enable it.
@@ -56,18 +56,50 @@ void init_adc(void)
 	portadc->CTRLA.reg = (0 << 1);				//ADC block is disabled
 	
 	// you will need to configure 5 registers
-		portadc->REFCTRL.reg = (1 << 7); 
-		//avgctrl.reg
-		//sampctrl.reg
-		//ctrlb.reg
-		//inputctrl.reg (muxpos, muxneg, gain)
-	
+		portadc->REFCTRL.reg = (1u << 7); 
+		portadc->REFCTRL.reg |= (1u << 1);
+		
+		portadc->SAMPCTRL.reg = 0;
+		
+		portadc->AVGCTRL.reg |= (1u << 0); 
+		portadc->AVGCTRL.reg |= (0 << 1);
+		portadc->AVGCTRL.reg |= (1u << 2);
+		portadc->AVGCTRL.reg |= (0 << 3);
+		portadc->AVGCTRL.reg |= (1u << 4); 
+		portadc->AVGCTRL.reg |= (0 << 5);
+		portadc->AVGCTRL.reg |= (1u << 6);
+		portadc->AVGCTRL.reg |= (0 << 7); //sets avg ctrl to 32
+		
+		portadc->CTRLB.reg = (1u << 8); // Pre-Scaler value set to divide the Clock by 128
+		portadc->CTRLB.reg |= (1u << 10); 
+		portadc->CTRLB.reg |= (0 << 4); // Set the Resolution to a 12-bit Result
+		portadc->CTRLB.reg |= (1u << 3); // Digital Correction Logic is Enabled
+		portadc->CTRLB.reg |= (1u << 2); // Enable Free Running Mode
+		portadc->CTRLB.reg |= (0 << 1); // Result is right-justfied
+		portadc->CTRLB.reg |= (0 << 0); // Enabling Single-Ended Mode
+		
+		// Set the Gain Stage to be 1/2
+		portadc->INPUTCTRL.reg = (1u << 24); 
+		portadc->INPUTCTRL.reg |= (1u << 25); 
+		portadc->INPUTCTRL.reg |= (1u << 26);
+		portadc->INPUTCTRL.reg |= (1u << 27); 
+		
+		portadc->INPUTCTRL.reg |= (1u << 11);
+		portadc->INPUTCTRL.reg |= (1u << 12); //grounds the negative mux pins
+		
+		portadc->INPUTCTRL.reg |= (1u << 0);
+		portadc->INPUTCTRL.reg |= (1u << 1);
+		portadc->INPUTCTRL.reg |= (0 << 2);
+		portadc->INPUTCTRL.reg |= (0 << 3);
+		portadc->INPUTCTRL.reg |= (1 << 4);//muxpos setup AIN[19] corresponds to PA11
+		
+		
 	// config PA11 to be owned by ADC Peripheral
+		
+		porta->PMUX[20].bit.PMUXE = 0x1;		//refer to pg345 data sheet
+		porta->PINCFG[20].bit.PMUXEN = 0;	//shows that its an even number pin
 	
-		//PMUX[ /*?*/ ].bit.PMUXE = ;		//refer to pg304 data sheet
-		//PINCFG[ /*?*/ ].bit.PMUXEN = ;	//refer to pg304 data sheet
-	
-	// CTRLA.reg = ;				//Enable ADC	
+	portadc->CTRLA.reg = (1 << 1);				//Enable ADC	
 }
 	
 //Simple Clock Initialization
