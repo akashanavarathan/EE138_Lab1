@@ -115,13 +115,8 @@ void init_adc(void)
 	
 	portadc->CTRLB.reg = (0X5 << 8); // Pre-Scaler value set to divide the Clock by 128
 	portadc->CTRLB.reg |= (0X0 << 4); // Set the Resolution to a 12-bit Result
-	portadc->CTRLB.reg |= (0x1 << 3); // Digital Correction Logic is Enabled (CORREN)
 	portadc->CTRLB.reg |= (1u << 2); // Enable Free Running Mode
 	portadc->CTRLB.reg |= (0 << 0); // Enabling Single-Ended Mode
-	
-	portadc->GAINCORR.reg = (1u << 11);
-
-	portadc->OFFSETCORR.reg = (1u << 0);
 	
 	// Set the Gain Stage to be 1/2
 	portadc->INPUTCTRL.reg = 0XF<<24; 
