@@ -21,15 +21,19 @@ int digit2 = 0;
 int digit3 = 0;
 int digit4 = 0;
 
+int result_read = 0; // Variable used to store the value from the RESULT register
+float display_result = 0; // Variable used to store the final result for display
+
 volatile int display_array[4] = {10,10,10,10}; // Array used to hold values displayed; 10 refers to display nothing
 
 unsigned int read_adc(void)
 {
 
 	// start the conversion
-	portadc->SWTRIG.reg = (1u << 1);
+	portadc->SWTRIG.reg = (0x1u << 1);
 		
-	while(portadc->INTFLAG.bit.RESRDY != 0); // wait for conversion to be available
+	while(!(portadc->INTFLAG.bit.RESRDY))
+	{} // wait for conversion to be available
 	
 	return(portadc->RESULT.reg); // insert register where ADC store value
 	
@@ -40,18 +44,45 @@ int main (void)
 	Simple_Clk_Init(); // Enable the Clocks for the SAMD20
 	enable_adc_clocks(); // Specifically Enable the Clocks for the ADC
 	init_adc(); // Initialize the proper registers for the ADC
+	int counter = 0;
+	
+	Port *ports = PORT_INSTS;										/* Create pointer to port group */
+	PortGroup *porA = &(ports->Group[0]);							/* Assign port group A */
+	PortGroup *porB = &(ports->Group[1]);							/* Assign port group B */
+	
+	// Set the direction of pin to be output to 7-segment LED (active low) (ABCD-EFG(dp)) and PB09 for negative/positive indicator
+	porB->DIR.reg = PORT_PB00|PORT_PB01|PORT_PB02|PORT_PB03|PORT_PB04|PORT_PB05|PORT_PB06|PORT_PB07|PORT_PB09;
+	porB->OUTSET.reg = PORT_PB00|PORT_PB01|PORT_PB02|PORT_PB03|PORT_PB04|PORT_PB05|PORT_PB06|PORT_PB07|PORT_PB09;
+	
+	porA->DIRSET.reg = PORT_PA04 | PORT_PA05 | PORT_PA06 | PORT_PA07 | PORT_PA13;  // Set as Outputs
+	porA->DIRCLR.reg = PORT_PA16 | PORT_PA17 | PORT_PA18 | PORT_PA19; // Set as Inputs
+	
+	porA->PINCFG[19].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+	porA->PINCFG[18].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+	porA->PINCFG[17].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+	porA->PINCFG[16].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
 		
-	int result_read = 0; // Variable used to store the value from the RESULT register
-	float display_result = 0; // Variable used to store the final result for display
+	// A, B, C, and D for Seven-Segment LED
+	porA->DIRSET.reg = PORT_PA04|PORT_PA05|PORT_PA06|PORT_PA07;
+	porA->OUTSET.reg = PORT_PA04|PORT_PA05|PORT_PA06|PORT_PA07;
+	
+	porA->OUTSET.reg = PORT_PA13;
 	
 	while(1)
 	{
 			result_read = read_adc();		//store variable from ADC into variable "x"
+			counter++;
 			
+			if (counter == 80)
+			{
+				
 			display_result = ((result_read * 3.3) / 4095); // Will convert the voltage into a range from 0 - 3.3V
-			display_result = (int)((display_result * 1000)); // Will multiply and round so it's somewhere between 0 and 3300
+			display_result = (display_result * 1000); // Will multiply and round so it's somewhere between 0 and 3300
+			counter = 0;
+			}
 			
-			Integer_to_Array(display_result); // Convert display_result into an Array
+			Integer_to_Array((int)display_result); // Convert display_result into an Array
+			
 			overallDisplay(); // Will Display the 4 Digit Number + Decimal Point on the 7-segment Displays
 				
 	}
@@ -73,53 +104,41 @@ void init_adc(void)
 {
 	portadc->CTRLA.reg = (0 << 1); //ADC block is disabled
 
-	
 	portadc->REFCTRL.reg = (1u << 7); 
 	portadc->REFCTRL.reg |= (1u << 1);
 	
 	portadc->SAMPCTRL.reg = 0;
 	
 	// AVG Control is set to 32, meaning it'll take that many samples
-	portadc->AVGCTRL.reg |= (1u << 0); 
-	portadc->AVGCTRL.reg |= (0 << 1);
-	portadc->AVGCTRL.reg |= (1u << 2);
-	portadc->AVGCTRL.reg |= (0 << 3);
-	portadc->AVGCTRL.reg |= (1u << 4); 
-	portadc->AVGCTRL.reg |= (0 << 5);
-	portadc->AVGCTRL.reg |= (1u << 6);
-	portadc->AVGCTRL.reg |= (0 << 7); 
+	portadc->AVGCTRL.reg |= 0X3; 
+	portadc->AVGCTRL.reg |= 0X3<<4; 
 	
-	portadc->CTRLB.reg = (1u << 8); // Pre-Scaler value set to divide the Clock by 128
-	portadc->CTRLB.reg |= (1u << 10); 
-	portadc->CTRLB.reg |= (0 << 4); // Set the Resolution to a 12-bit Result
-	portadc->CTRLB.reg |= (1u << 3); // Digital Correction Logic is Enabled (CORREN)
+	portadc->CTRLB.reg = (0X5 << 8); // Pre-Scaler value set to divide the Clock by 128
+	portadc->CTRLB.reg |= (0X0 << 4); // Set the Resolution to a 12-bit Result
+	portadc->CTRLB.reg |= (0x1 << 3); // Digital Correction Logic is Enabled (CORREN)
 	portadc->CTRLB.reg |= (1u << 2); // Enable Free Running Mode
-	portadc->CTRLB.reg |= (0 << 1); // Result is right-justfied
 	portadc->CTRLB.reg |= (0 << 0); // Enabling Single-Ended Mode
 	
+	portadc->GAINCORR.reg = (1u << 11);
+
+	portadc->OFFSETCORR.reg = (1u << 0);
+	
 	// Set the Gain Stage to be 1/2
-	portadc->INPUTCTRL.reg = (1u << 24); 
-	portadc->INPUTCTRL.reg |= (1u << 25); 
-	portadc->INPUTCTRL.reg |= (1u << 26);
-	portadc->INPUTCTRL.reg |= (1u << 27); 
+	portadc->INPUTCTRL.reg = 0XF<<24; 
 	
 	// MUXNEG is Grounded
-	portadc->INPUTCTRL.reg |= (1u << 11);
-	portadc->INPUTCTRL.reg |= (1u << 12); 
+	portadc->INPUTCTRL.reg |= (0x18 << 8);
 	
 	// MUXPOS is set to AIN[19] which is PA11
-	portadc->INPUTCTRL.reg |= (1u << 0);
-	portadc->INPUTCTRL.reg |= (1u << 1);
-	portadc->INPUTCTRL.reg |= (0 << 2);
-	portadc->INPUTCTRL.reg |= (0 << 3);
-	portadc->INPUTCTRL.reg |= (1 << 4);
+	portadc->INPUTCTRL.reg |= (0x13 << 0);
+
 	
 	
 	// config PA11 to be owned by ADC Peripheral
-	porta->PMUX[20].bit.PMUXE = 0x1; 
-	porta->PINCFG[20].bit.PMUXEN = 0; 
+	porta->PMUX[5].bit.PMUXO = 0x1; 
+	porta->PINCFG[11].bit.PMUXEN = 0X1; 
 
-	portadc->CTRLA.reg = (1 << 1); //Enable ADC	
+	portadc->CTRLA.reg = (1 << 1); // Enable ADC	
 }
 
 // Display LED Function Used to display the Voltage on the 7-segment Displays
@@ -141,8 +160,8 @@ void displayLED(int digit)
 		
 		// Display 1
 		case 1:
-		porB-> OUTCLR.reg = PORT_PB01 | PORT_PB02 | PORT_PB07;
-		porB-> OUTSET.reg = PORT_PB00 | PORT_PB05 | PORT_PB06 | PORT_PB04 | PORT_PB03;
+		porB-> OUTCLR.reg = PORT_PB01 | PORT_PB02;
+		porB-> OUTSET.reg = PORT_PB00 | PORT_PB05 | PORT_PB06 | PORT_PB04 | PORT_PB03 | PORT_PB07;
 		break;
 		
 		// Display 2
@@ -190,7 +209,7 @@ void displayLED(int digit)
 		// Display 9
 		case 9:
 		porB-> OUTSET.reg = PORT_PB04;
-		porB-> OUTCLR.reg = PORT_PB00 | PORT_PB02 | PORT_PB01 | PORT_PB03 | PORT_PB05 | PORT_PB06 | PORT_PB07;
+		porB-> OUTCLR.reg = PORT_PB00 | PORT_PB02 | PORT_PB01 | PORT_PB03 | PORT_PB05 | PORT_PB06;
 		break;
 		
 		// Display Nothing
@@ -200,8 +219,8 @@ void displayLED(int digit)
 		
 		// Display the Decimal Point
 		case 11:
-		porB-> OUTSET.reg = PORT_PB07;
-		porB-> OUTCLR.reg = PORT_PB00 | PORT_PB02 | PORT_PB01 | PORT_PB03 | PORT_PB05 | PORT_PB06 | PORT_PB04;
+		porB-> OUTCLR.reg = PORT_PB07;
+		porB-> OUTSET.reg = PORT_PB00 | PORT_PB02 | PORT_PB01 | PORT_PB03 | PORT_PB05 | PORT_PB06 | PORT_PB04;
 		break;
 	}
 	
@@ -265,6 +284,11 @@ void overallDisplay()
 	PortGroup *porA = &(ports->Group[0]);
 	PortGroup *porB = &(ports->Group[1]);
 	
+	porA->PINCFG[19].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+	porA->PINCFG[18].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+	porA->PINCFG[17].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+	porA->PINCFG[16].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+	
 	porA-> OUTSET.reg = PORT_PA07 | PORT_PA06 | PORT_PA05 | PORT_PA04;
 	porB-> DIRSET.reg = PORT_PB07|PORT_PB06|PORT_PB05|PORT_PB04|PORT_PB03|PORT_PB02|PORT_PB01|PORT_PB00;
 
@@ -272,7 +296,7 @@ void overallDisplay()
 	{
 		porA -> OUTCLR.reg = 1u << (7-i); // Turn on 7-Segment Display
 		displayLED(display_array[i]); // Display Value
-		if(i = 0)
+		if(i == 0)
 		{
 			displayLED(11);
 		}
@@ -292,7 +316,7 @@ void Simple_Clk_Init(void)
 	SYSCTRL->INTFLAG.reg = SYSCTRL_INTFLAG_BOD33RDY | SYSCTRL_INTFLAG_BOD33DET |
 			SYSCTRL_INTFLAG_DFLLRDY;
 			
-	system_flash_set_waitstates(0);  	//Clock_flash wait state =0
+	//system_flash_set_waitstates(0);  	//Clock_flash wait state =0
 
 	SYSCTRL_OSC8M_Type temp = SYSCTRL->OSC8M;      /* for OSC8M initialization  */
 
