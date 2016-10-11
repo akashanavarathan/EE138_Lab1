@@ -4,11 +4,14 @@
 //////////////////////////////////////////////////////////////////////////////////////
 
 #include <asf.h>
+#include <math.h>
 
 void Simple_Clk_Init(void);
 void configure_dac(void);
 void configure_dac_clock(void);
 Dac *portdac = DAC; 
+
+int x = 0;
 
 
 int main(void)
@@ -22,8 +25,10 @@ int main(void)
 				/* Wait until the synchronization is complete */
 		while (portdac->STATUS.reg & DAC_STATUS_SYNCBUSY) {
 		};
-				
-				/* Write the new value to the DAC DATA register */
+		
+		portdac->DATA.reg = sin(x) + 512; 
+		
+		x++;
 
 	}
 
@@ -45,8 +50,8 @@ void configure_dac(void)
 	Port *ports = PORT_INSTS;
 	PortGroup *por = &(ports->Group[0]);
 	
-	por->PINCFG[/**/].bit.PMUXEN = ;		// set to correct pin configuration
-	por->PMUX[/*?*/].bit.PMUXE = ;			// set to correct peripheral
+	por->PINCFG[2].bit.PMUXEN = 0x1;		// set to correct pin configuration
+	por->PMUX[1].bit.PMUXE = 0x1;			// set to correct peripheral
 
 
 	while (portdac->STATUS.reg & DAC_STATUS_SYNCBUSY) {
@@ -54,6 +59,7 @@ void configure_dac(void)
 	}
 
 	/* Set reference voltage with CTRLB */
+	portdac->CTRLB.reg = (1u << 6);
 
 
 	while (portdac->STATUS.reg & DAC_STATUS_SYNCBUSY) {
@@ -61,8 +67,10 @@ void configure_dac(void)
 	}
 
 	/* Enable the module with CTRLA */
+	portdac->CTRLA.reg = (1u << 1);
 
 	/* Enable selected output with CTRLB*/
+	portdac->CTRLB.reg = (1u << 0);
 
 }
 
