@@ -5,13 +5,16 @@
 
 #include <asf.h>
 #include <math.h>
+#define PI 3.14159
 
 void Simple_Clk_Init(void);
 void configure_dac(void);
 void configure_dac_clock(void);
 Dac *portdac = DAC; 
 
-int x = 0;
+int sinArr[256];
+int cycles = 256;
+int index =0;
 
 
 int main(void)
@@ -20,15 +23,23 @@ int main(void)
 	configure_dac_clock();
 	configure_dac();
 	
+	for (int store = 0; store < cycles; store++)
+		{
+			sinArr[store] = (((sin(2* PI* store/cycles) + 1.1) * 1023) / 3.3) / 2;
+		}
+	
 	while (1) {
 
 				/* Wait until the synchronization is complete */
 		while (portdac->STATUS.reg & DAC_STATUS_SYNCBUSY) {
 		};
 		
-		portdac->DATA.reg = sin(x) + 512; 
 		
-		x++;
+			portdac->DATA.reg = sinArr[index++];
+			if (index >= cycles)
+			{
+				index=0;
+			}
 
 	}
 
