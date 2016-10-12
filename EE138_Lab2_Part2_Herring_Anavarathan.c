@@ -12,8 +12,8 @@ void configure_dac(void);
 void configure_dac_clock(void);
 Dac *portdac = DAC; 
 
-int sinArr[256];
-int cycles = 256;
+int sinArr[292];
+int cycles = 292;
 int index =0;
 
 
