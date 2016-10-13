@@ -1,6 +1,7 @@
 //////////////////////////////////////////////////////////////////////////////////////
 // Lab 2: Part 2: DAC
 // Scott Herring and Akash Anavarathan
+// Creates a Sine Wave with a Frequency of 1 kHz
 //////////////////////////////////////////////////////////////////////////////////////
 
 #include <asf.h>
@@ -12,9 +13,9 @@ void configure_dac(void);
 void configure_dac_clock(void);
 Dac *portdac = DAC; 
 
-int sinArr[292];
-int cycles = 292;
-int index =0;
+int sinArr[292]; // Array to store the values for the Sine Wave
+int cycles = 292; // Number of Samples to be taken in order to recreate the Sine Wave
+int index = 0; // Counter used to increment the values stored into the DATA register
 
 
 int main(void)
@@ -25,21 +26,21 @@ int main(void)
 	
 	for (int store = 0; store < cycles; store++)
 		{
-			sinArr[store] = (((sin(2* PI* store/cycles) + 1.1) * 1023) / 3.3) / 2;
+			sinArr[store] = (((sin(2* PI* store/cycles) + 1.1) * 1023) / 3.3) / 2; // Creates an array of values that will replicate the Sine Wave
 		}
 	
 	while (1) {
 
-				/* Wait until the synchronization is complete */
-		while (portdac->STATUS.reg & DAC_STATUS_SYNCBUSY) {
+		while (portdac->STATUS.reg & DAC_STATUS_SYNCBUSY) 
+		{
+			/* Wait until the synchronization is complete */
 		};
 		
-		
-			portdac->DATA.reg = sinArr[index++];
-			if (index >= cycles)
-			{
-				index=0;
-			}
+		portdac->DATA.reg = sinArr[index++]; // Increment the Array and store into the DATA register as soon as Synchronization is complete
+		if (index >= cycles)
+		{
+			index = 0; // Reset the Index to 0, if it's greater than the number of samples taken
+		}
 
 	}
 
@@ -73,7 +74,8 @@ void configure_dac(void)
 	portdac->CTRLB.reg = (1u << 6);
 
 
-	while (portdac->STATUS.reg & DAC_STATUS_SYNCBUSY) {
+	while (portdac->STATUS.reg & DAC_STATUS_SYNCBUSY) 
+	{
 		/* Wait until the synchronization is complete */
 	}
 
