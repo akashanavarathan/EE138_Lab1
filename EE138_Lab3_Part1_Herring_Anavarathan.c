@@ -13,6 +13,9 @@ void enable_tc(void);
 
 //setup a the correct TC pointer for the corresponding pins. (use table 5-1 as a reference)
 //there are multiple TC #'s, choose the one that ties to the specified port utilized
+Tc * tc = TC2;
+TcCount8 *tcpointer = &(tc->COUNT8); 
+
 
 int main (void)
 {
@@ -30,7 +33,11 @@ int main (void)
 /* Set correct PA pins as TC pins for PWM operation */
 void enable_port(void)
 {
-	//setup pins
+	Port *ports = PORT_INSTS;
+	PortGroup *por = &(ports->Group[0]);
+	
+	por->PINCFG[13].bit.PMUXEN = 0x1;		// set to correct pin configuration
+	por->PMUX[6].bit.PMUXO = 0x4;			// set to correct peripheral
 }
 
 /* Perform Clock configuration to source the TC 
@@ -38,9 +45,9 @@ void enable_port(void)
 2) WRITE THE PROPER GENERIC CLOCK SELETION ID*/
 void enable_tc_clocks(void)
 {
-	PM->APBCMASK.reg |= ______________;  	// PM_APBCMASK_______ is in the ___ position
+	PM->APBCMASK.reg |= (1u << 10);  	// PM_APBCMASK_______ is in the ___ position
 	
-	uint32_t temp=_____________;   		// ID for ________ is __________  (see table 14-2)
+	uint32_t temp= 0x14;   		// ID for ________ is __________  (see table 14-2)
 	temp |= 0<<8;         			//  Selection Generic clock generator 0
 	GCLK->CLKCTRL.reg=temp;   		//  Setup in the CLKCTRL register
 	GCLK->CLKCTRL.reg |= 0x1u << 14;    	// enable it.
@@ -53,17 +60,13 @@ void enable_tc(void)
 	enable_tc_clocks();
 	
 	/* Set up CTRLA */
-	/* 
-	
-		ex: pt->COUNT8.registername.reg = x;
-	
-	Set the 
-	1) counter mode
-	2) prescaler
-	3) set the PRESCSYNC bits to PRESC from table 27-4 in the datasheet
-	*/
+	tcpointer->CTRLA.reg = (1u << 1);
+	tcpointer->CTRLA.reg = (1u << 2); //set counter mode
+	tcpointer->CTRLA.reg = (4u << 8); //prescaler set
+	tcpointer->CTRLA.reg = (1u << 12); //PRESCSYNC set to PRESC
 
 	/* Write a suitable value to fix duty cycle and period.*/
+	
 
 	/*Enable TC*/
 
