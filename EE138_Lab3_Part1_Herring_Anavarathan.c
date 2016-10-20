@@ -59,18 +59,19 @@ void enable_tc(void)
 	enable_tc_clocks();
 	
 	/* Set up CTRLA */
-	tcpointer->CTRLA.reg = (1u << 1); // Enable CTRLA
 	tcpointer->CTRLA.reg |= (1u << 2); // set counter mode
 	tcpointer->CTRLA.reg |= (4u << 8); // prescaler set
 	tcpointer->CTRLA.reg |= (1u << 12); // PRESCSYNC set to PRESC
-	tcpointer->CTRLA.reg |= (1u << 6); // NPWM Chosen in Wavegen
-	tcpointer->PER.reg = 
 
 	/* Write a suitable value to fix duty cycle and period.*/
+	tcpointer->CTRLA.reg |= (1u << 6); // NPWM Chosen in Wavegen
+	tcpointer->PER.reg = (1u << 5); // NO CLUE IF THIS WORKS, NEEDS TO BE PLAYED AROUND WITH
+	tcpointer->CC[1].reg = (1u << 4); // NO CLUE IF THIS WORKS, NEEDS TO BE PLAYED AROUND WITH
 	
 
 	/*Enable TC*/
-
+	tcpointer->CTRLA.reg = (1u << 1); // Enable TC2
+	
 }
 
 //Simple Clock Initialization
