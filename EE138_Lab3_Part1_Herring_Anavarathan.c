@@ -46,8 +46,8 @@ int main (void)
 	
 	while(1)
 	{
-		//tcpointer->CC[1].reg = sine_table_percent[index++];
-		tcpointer->CC[1].reg = 0xF0;
+		tcpointer->CC[1].reg = sine_table_percent[index++];
+		// tcpointer->CC[1].reg = 0xF0;
 		if(index <= cycles)
 			index = 0;
 	}
@@ -85,15 +85,15 @@ void enable_tc(void)
 	enable_tc_clocks();
 	
 	/* Set up CTRLA */
-	tcpointer->CTRLA.reg |= (1u << 2); // set counter mode
-	tcpointer->CTRLA.reg |= (0x3 << 8); // prescaler set
+	tcpointer->CTRLA.reg = (1u << 2); // set counter mode
+	tcpointer->CTRLA.reg |= (0x0 << 8); // prescaler set
 	tcpointer->CTRLA.reg |= (1u << 12); // PRESCSYNC set to PRESC
 
 	/* Write a suitable value to fix duty cycle and period.*/
 	tcpointer->CTRLA.reg |= (1u << 6); // NPWM Chosen in Wavegen
 	tcpointer->PER.reg = 0xFF;
 	/*Enable TC*/
-	tcpointer->CTRLA.reg = (1u << 1); // Enable TC2
+	tcpointer->CTRLA.reg |= (1u << 1); // Enable TC2
 	
 }
 
