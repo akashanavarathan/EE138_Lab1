@@ -9,15 +9,36 @@ void Simple_Clk_Init(void);
 void enable_port(void);
 void enable_tc_clocks(void);
 void enable_tc(void);
+int index = 0;
+int cycles = 256;
+float sine_table_percent[128] = {0.5,0.52452141,0.548983805,0.573328313,0.597496346,
+0.62142974,0.645070896,0.668362917,0.691249749,0.71367631,0.735588627,0.756933966,
+0.777660956,0.797719715,0.817061967,0.835641164,0.853412591,0.870333478,0.886363105,
+0.901462892,0.9155965,0.928729914,0.940831527,0.951872215,0.961825406,0.970667147,
+0.978376158,0.984933888,0.990324553,0.994535181,0.997555637,0.999378653,0.999999841,
+0.999417707,0.997633651,0.994651967,0.990479831,0.985127283,0.978607206,0.970935291,
+0.962130001,0.952212527,0.941206738,0.929139121,0.916038718,0.901937056,0.886868075,
+0.870868039,0.853975454,0.836230976,0.81767731,0.798359106,0.778322858,0.757616784,
+0.736290719,0.714395985,0.691985276,0.669112527,0.645832783,0.622202072,0.598277264,
+0.574115936,0.549776238,0.525316747,0.500796326,0.47627399,0.451808753,0.427459496,
+0.403284818,0.379342899,0.355691359,0.332387119,0.309486264,0.287043908,0.265114062,
+0.243749504,0.223001649,0.202920432,0.18355418,0.164949501,0.14715117,0.130202021,
+0.114142845,0.099012291,0.084846772,0.07168038,0.059544802,0.048469244,0.03848036,
+0.029602191,0.021856103,0.015260738,0.009831969,0.00558286,0.002523639,0.000661668,
+0.000001426,0.000544506,0.002289597,0.005232501,0.009366135,0.014680552,0.02116296,
+0.02879776,0.037566577,0.047448308,0.05841917,0.070452761,0.08352012,0.097589799,
+0.112627937,0.128598342,0.14546258,0.163180064,0.181708154,0.20100226,0.221015947,
+0.241701051,0.263007789,0.284884883,0.307279683,0.330138292,0.353405699,0.377025906,
+0.400942069,0.425096628,0.449431454,0.47388798};
 
 //setup a the correct TC pointer for the corresponding pins. (use table 5-1 as a reference)
 //there are multiple TC #'s, choose the one that ties to the specified port utilized
-Tc * tc = TC2;
-TcCount8 *tcpointer = &(tc->COUNT8); 
 
 
 int main (void)
 {
+	Tc * tc = TC2;
+	TcCount8 *tcpointer = &(tc->COUNT8);
 	Simple_Clk_Init();
 
 	/* Enable the timer*/
@@ -25,7 +46,10 @@ int main (void)
 	
 	while(1)
 	{
-	
+		//tcpointer->CC[1].reg = sine_table_percent[index++];
+		tcpointer->CC[1].reg = 0xF0;
+		if(index <= cycles)
+			index = 0;
 	}
 }
 
@@ -55,20 +79,19 @@ void enable_tc_clocks(void)
 /* Configure the basic timer/counter to have a period of________ or a frequency of _________  */
 void enable_tc(void)
 {
+	Tc * tc = TC2;
+	TcCount8 *tcpointer = &(tc->COUNT8);
 	enable_port();
 	enable_tc_clocks();
 	
 	/* Set up CTRLA */
 	tcpointer->CTRLA.reg |= (1u << 2); // set counter mode
-	tcpointer->CTRLA.reg |= (4u << 8); // prescaler set
+	tcpointer->CTRLA.reg |= (0x3 << 8); // prescaler set
 	tcpointer->CTRLA.reg |= (1u << 12); // PRESCSYNC set to PRESC
 
 	/* Write a suitable value to fix duty cycle and period.*/
 	tcpointer->CTRLA.reg |= (1u << 6); // NPWM Chosen in Wavegen
-	tcpointer->PER.reg = (1u << 5); // NO CLUE IF THIS WORKS, NEEDS TO BE PLAYED AROUND WITH
-	tcpointer->CC[1].reg = (1u << 4); // NO CLUE IF THIS WORKS, NEEDS TO BE PLAYED AROUND WITH
-	
-
+	tcpointer->PER.reg = 0xFF;
 	/*Enable TC*/
 	tcpointer->CTRLA.reg = (1u << 1); // Enable TC2
 	
