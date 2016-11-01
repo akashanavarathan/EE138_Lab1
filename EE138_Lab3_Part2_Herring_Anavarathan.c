@@ -85,10 +85,15 @@ int main (void)
 				tcpointer->CC[0].reg = (int)(result_read / 17);
 				tcpointer->CC[1].reg = (int)(result_read / 17);
 			}
-			else
+			else if(result_read > 2048 || (result_read < 2048 && result_read > 40))
 			{
 				tcpointer->CC[0].reg = (int)(result_read / 17);
 				tcpointer->CC[1].reg = 255 - (int)(result_read / 17);
+			}
+			else
+			{
+				tcpointer->CC[0].reg = (int)(result_read / 17);
+				tcpointer->CC[1].reg = 240 - (int)(result_read / 17);
 			}
 			
 			Integer_to_Array((int)display_result); // Convert display_result into an Array
