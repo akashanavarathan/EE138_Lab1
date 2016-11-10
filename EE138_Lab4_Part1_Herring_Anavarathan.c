@@ -9,20 +9,33 @@ void Simple_Clk_Init(void);
 void enable_adc_clocks(void);
 void init_adc(void);
 void wait(int t);
-void enable_port(void);
 void enable_tc_clocks(void);
 void enable_tc(void);
 unsigned int read_adc(void);
 void configure_dac(void);
 void configure_dac_clock(void);
+void TC4_Handler(void)
+
+
+static float y2 = 0;
+static float y1 = 0;
+static float y = 0;
+static float u2 = 0;
+static float u1 = 0;
+static float u = 0;
+
+static float a2 = 1.3725;
+static float a1 = 0.8819;
+static float b2 = 1.4797;
+static float b1 = 0.9891;
 
 PortGroup *porta = (PortGroup *)PORT;
 Adc *portadc = ADC; // define a pointer to the ADC block
 Tc * tc = TC4;
+Dac *portdac = DAC; 
 TcCount8 *tcpointer;
 
-int result_read = 0; // Variable used to store the value from the RESULT register
-float display_result = 0; // Variable used to store the final result for display
+
 
 int main (void)
 {	
@@ -36,44 +49,14 @@ int main (void)
 	configure_dac_clock();
 	configure_dac();
 	
+	NVIC->ISER[0] = (1 << 17); // Enables the Interrupt TC4
+	
 	Port *ports = PORT_INSTS;										/* Create pointer to port group */
 	PortGroup *porA = &(ports->Group[0]);							/* Assign port group A */
 	PortGroup *porB = &(ports->Group[1]);							/* Assign port group B */
 	
 	while(1)
-	{
-			result_read = read_adc();		//store variable from ADC into variable "x"
-			counter++;
-			
-			if (counter == 80)
-			{
-				
-			display_result = ((result_read * 3.3) / 4095); // Will convert the voltage into a range from 0 - 3.3V
-			display_result = (display_result * 1000); // Will multiply and round so it's somewhere between 0 and 3300
-			counter = 0;
-			}
-			
-			if(result_read == 2048)
-			{
-				tcpointer->CC[0].reg = (int)(result_read / 17);
-				tcpointer->CC[1].reg = (int)(result_read / 17);
-			}
-			else if(result_read > 2048 || (result_read < 2048 && result_read > 40))
-			{
-				tcpointer->CC[0].reg = (int)(result_read / 17);
-				tcpointer->CC[1].reg = 255 - (int)(result_read / 17);
-			}
-			else
-			{
-				tcpointer->CC[0].reg = (int)(result_read / 17);
-				tcpointer->CC[1].reg = 240 - (int)(result_read / 17);
-			}
-			
-			Integer_to_Array((int)display_result); // Convert display_result into an Array
-			
-			overallDisplay(); // Will Display the 4 Digit Number + Decimal Point on the 7-segment Displays
-				
-	}
+	{}
 }
 
 unsigned int read_adc(void)
@@ -210,17 +193,15 @@ void enable_tc(void)
 	
 	/* Set up CTRLA */
 	tcpointer->CTRLA.reg = (1u << 2); // set counter mode
-	tcpointer->CTRLA.reg |= (0x0 << 8); // prescaler set
+	tcpointer->CTRLA.reg |= (0x7 << 8); // prescaler set to DIV1024
 	tcpointer->CTRLA.reg |= (1u << 12); // PRESCSYNC set to PRESC
 
-	/* Write a suitable value to fix duty cycle and period.*/
-	tcpointer->CTRLA.reg |= (1u << 6); // NPWM Chosen in Wavegen
-	check = tcpointer->STATUS.bit.SYNCBUSY;
-	tcpointer->COUNT.reg = 0;
-	tcpointer->PER.reg = 0xFE;
+	tcpointer->PER.reg = 0x10;
 	
 	/*Enable TC*/
 	tcpointer->CTRLA.reg |= 1 << 1; // Enable TC4
+	
+	tcpointer->INTENSET.reg = 0x1; // Enable the Overflow Interrupt
 	
 }
 
@@ -263,4 +244,25 @@ void configure_dac(void)
 	/* Enable selected output with CTRLB*/
 	portdac->CTRLB.reg = (1u << 0);
 
+}
+
+void TC4_Handler(void)
+{
+	int read_val = 0;
+	read_val = read_adc();
+	read_val = read_val >> 2;
+	u = read_val / 1023;
+	
+	y = -(a2*y1) - (a1*y2) + (b2*u1) + (b1*u2) + u;
+	
+	portdac->DATA.reg = (int)((y / 3.3) * 65535);
+	
+	y3 = y2;
+	y2 = y1;
+	y1 = y;
+	u3 = u2;
+	u2 = u1;
+	u1 = u;
+	
+	tcpointer->INTENCLR.reg = 0x1; // Clear the Overflow Interrupt
 }
