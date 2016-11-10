@@ -14,20 +14,21 @@ void enable_tc(void);
 unsigned int read_adc(void);
 void configure_dac(void);
 void configure_dac_clock(void);
-void TC4_Handler(void)
+void TC4_Handler(void);
+void initclks(void);
 
 
-static float y2 = 0;
-static float y1 = 0;
-static float y = 0;
-static float u2 = 0;
-static float u1 = 0;
-static float u = 0;
+float y2 = 0;
+float y1 = 0;
+float y = 0;
+float u2 = 0;
+float u1 = 0;
+float u = 0;
 
-static float a2 = 1.3725;
-static float a1 = 0.8819;
-static float b2 = 1.4797;
-static float b1 = 0.9891;
+float a2 = 1.3725;
+float a1 = 0.8819;
+float b2 = 1.4797;
+float b1 = 0.9891;
 
 PortGroup *porta = (PortGroup *)PORT;
 Adc *portadc = ADC; // define a pointer to the ADC block
@@ -43,20 +44,24 @@ int main (void)
 	int counter = 0;
 	
 	Simple_Clk_Init(); // Enable the Clocks for the SAMD20
-	enable_tc();
-	enable_adc_clocks(); // Specifically Enable the Clocks for the ADC
-	init_adc(); // Initialize the proper registers for the ADC
-	configure_dac_clock();
-	configure_dac();
+	initclks();
 	
-	NVIC->ISER[0] = (1 << 17); // Enables the Interrupt TC4
+	configure_dac();
+	//enable_adc_clocks(); // Specifically Enable the Clocks for the ADC
+	init_adc(); // Initialize the proper registers for the ADC
+	//configure_dac_clock();
+	enable_tc();
+	
+	
 	
 	Port *ports = PORT_INSTS;										/* Create pointer to port group */
 	PortGroup *porA = &(ports->Group[0]);							/* Assign port group A */
 	PortGroup *porB = &(ports->Group[1]);							/* Assign port group B */
-	
+	int cher = 0;
 	while(1)
-	{}
+	{
+		cher = 1;
+	}
 }
 
 unsigned int read_adc(void)
@@ -160,6 +165,36 @@ void wait(int t)
 	}
 }
 
+
+void initclks(void)
+{
+	PM->APBCMASK.reg = (1u << 16)|(1u << 18)|(1u << 12);
+	
+	uint32_t temp = 0x17; // ID for GENCLK is 0x17
+	temp |= 0<<8; // Selection Generic clock generator 0
+	GCLK->CLKCTRL.reg = temp; // Setup in the CLKCTRL register
+	GCLK->CLKCTRL.reg |= 0x1u << 14; // enable it.
+	
+	while(GCLK->STATUS.bit.SYNCBUSY)
+	{
+
+	}
+	
+	temp = 0x1A; 			// ID for GCLK_DAC is 0x1A
+	temp |= 0<<8; 					// Selection Generic clock generator 0
+	GCLK->CLKCTRL.reg = temp; 			// Setup in the CLKCTRL register
+	GCLK->CLKCTRL.reg |= 0x1u << 14; 		// enable it.
+	
+	while(GCLK->STATUS.bit.SYNCBUSY)
+	{
+
+	}
+	
+	uint32_t temp2 = 0x15;   		// ID for ________ is __________  (see table 14-2)
+	temp2 |= 0<<8;         			//  Selection Generic clock generator 0
+	GCLK->CLKCTRL.reg = temp2;   		//  Setup in the CLKCTRL register
+	GCLK->CLKCTRL.reg |= 0x1u << 14;    	// enable it.
+}
 // set up generic clock for ADC
 void enable_adc_clocks(void)
 {
@@ -188,8 +223,7 @@ void enable_tc_clocks(void)
 void enable_tc(void)
 {
 	int check;
-	enable_port();
-	enable_tc_clocks();
+	//enable_tc_clocks();
 	
 	/* Set up CTRLA */
 	tcpointer->CTRLA.reg = (1u << 2); // set counter mode
@@ -202,7 +236,7 @@ void enable_tc(void)
 	tcpointer->CTRLA.reg |= 1 << 1; // Enable TC4
 	
 	tcpointer->INTENSET.reg = 0x1; // Enable the Overflow Interrupt
-	
+	NVIC->ISER[0] = (1 << 17); // Enables the Interrupt TC4
 }
 
 void configure_dac_clock(void)
@@ -238,16 +272,22 @@ void configure_dac(void)
 		/* Wait until the synchronization is complete */
 	}
 
+	/* Enable selected output with CTRLB*/
+	portdac->CTRLB.reg = (1u << 0);
+	
 	/* Enable the module with CTRLA */
 	portdac->CTRLA.reg = (1u << 1);
 
-	/* Enable selected output with CTRLB*/
-	portdac->CTRLB.reg = (1u << 0);
+	
 
 }
 
 void TC4_Handler(void)
 {
+	Port *ports = PORT_INSTS;										/* Create pointer to port group */
+	PortGroup *porA = &(ports->Group[0]);							/* Assign port group A */
+	PortGroup *porB = &(ports->Group[1]);
+	
 	int read_val = 0;
 	read_val = read_adc();
 	read_val = read_val >> 2;
@@ -257,12 +297,16 @@ void TC4_Handler(void)
 	
 	portdac->DATA.reg = (int)((y / 3.3) * 65535);
 	
-	y3 = y2;
+	
 	y2 = y1;
 	y1 = y;
-	u3 = u2;
+	
 	u2 = u1;
 	u1 = u;
+	
+	porB->DIRCLR.reg = PORT_PB09;
+	porB->OUTCLR.reg = PORT_PB09;
+	
 	
 	tcpointer->INTENCLR.reg = 0x1; // Clear the Overflow Interrupt
 }
