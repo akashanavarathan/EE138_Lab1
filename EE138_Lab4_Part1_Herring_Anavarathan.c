@@ -32,6 +32,7 @@ Tc * tc = (Tc*)TC4;
 Dac *portdac = (Dac*)DAC; 
 TcCount8 *tcpointer;
 
+int read_val = 0;
 
 int main (void)
 {	
@@ -44,9 +45,20 @@ int main (void)
 	init_adc(); // Initialize the proper registers for the ADC
 	configure_dac();
 	enable_tc();
-	
+
+
+
 	while(1)
-	{}
+	{
+	//
+	//read_val = read_adc();
+	//u = read_val >> 2;
+//
+	//y = (1.4797*y_1) - (0.9891*y2) - (1.3725*u1) + (0.8819*u2) + u;
+	//
+	//portdac->DATA.reg = u;
+	}
+	
 		
 	return 0;
 }
@@ -80,7 +92,7 @@ void init_adc(void)
 	
 	portadc->CTRLB.reg = (0X1 << 8); // Pre-Scaler value set to divide the Clock by 128
 	portadc->CTRLB.reg |= (0X0 << 4); // Set the Resolution to a 12-bit Result
-	portadc->CTRLB.reg |= (1u << 2); // Enable Free Running Mode
+	portadc->CTRLB.reg |= (0u << 2); // Enable single ended mode
 	
 	// Set the Gain Stage to be 1/2
 	portadc->INPUTCTRL.reg = 0XF<<24; 
@@ -176,7 +188,7 @@ void enable_tc(void)
 	tcpointer->CTRLA.reg = (1u << 2); // set counter mode
 	tcpointer->CTRLA.reg |= (0x5 << 8); // prescaler set to DIV64
 	tcpointer->CTRLA.reg |= (1u << 12); // PRESCSYNC set to PRESC
-
+	tcpointer->CTRLA.reg |= 0<<5;
 	tcpointer->PER.reg = 0xFA;
 	
 	/*Enable TC*/
@@ -221,14 +233,13 @@ void configure_dac(void)
 
 void TC4_Handler(void)
 {
-	if (tcpointer->INTFLAG.bit.OVF)
-	{
+	
 		
 	int read_val = 0;
 	read_val = read_adc();
 	u = read_val >> 2;
 
-	y = (1.4797*y_1) - (0.9891*y2) - (1.3725*u1) + (0.8819*u2) + u;
+	y = -(1.4797*u1) + (0.9891*u2) + (1.3725*y_1) - (0.8819*y2) + u;
 	
 	portdac->DATA.reg = y;
 	
@@ -238,6 +249,6 @@ void TC4_Handler(void)
 	u1 = u;
 	
 	tcpointer->INTFLAG.bit.OVF = 0x1; // Clear the Overflow Interrupt
-	}
+	
 	
 }
