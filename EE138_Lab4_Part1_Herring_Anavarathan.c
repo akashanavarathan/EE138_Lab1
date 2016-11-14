@@ -50,13 +50,7 @@ int main (void)
 
 	while(1)
 	{
-	//
-	//read_val = read_adc();
-	//u = read_val >> 2;
-//
-	//y = (1.4797*y_1) - (0.9891*y2) - (1.3725*u1) + (0.8819*u2) + u;
-	//
-	//portdac->DATA.reg = u;
+	
 	}
 	
 		
