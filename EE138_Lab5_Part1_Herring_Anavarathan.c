@@ -11,8 +11,8 @@ void Integer_to_Array(int resultValue);
 void overallDisplay(void);
 void wait(int t);
 void enable_port(void);
+void enable_tc_clocks(void);
 void enable_tc(void);
-void enable_tc5(void);
 void enable_eic(void);
 void initclks(void);
 void keypad_state_machine();
@@ -23,20 +23,14 @@ int speed_new = 0;
 int speed = 0;
 volatile signed int position_counter = 0;
 PortGroup *porta = (PortGroup *)PORT;
-TcCount8 *tcpointer4;
-TcCount8 *tcpointer5;
+Tc * tc = TC4;
+TcCount8 *tcpointer;
 // Values used in the Integer_to_Array function to pass into array
 int digit1 = 0;
 int digit2 = 0;
 int digit3 = 0;
 int digit4 = 0;
 float res_val = 0;
-float increment = 0;
-float error = 0;
-float integral = 0;
-volatile float k_p = 0.250;
-volatile float k_i = 1;
-float p_cmd = 1500;
 
 #define idle 0
 #define key_press_debounce 1
@@ -44,18 +38,11 @@ float p_cmd = 1500;
 #define key_press_release 3
 #define null_value 25
 
-#define idle_motor 1000
-#define accel 1001
-#define speed_ctrl 1002
-#define decel 1003
-
 volatile int key_press_value = 0;
 volatile int key_press_value_last = 0;
 volatile int state = 0;
 int debounce_counter = 0;
 int key_press_segment = 0;	
-
-volatile int motor_state = 1000;
 
 volatile int result_read = 0; // Variable used to store the value from the RESULT register
 volatile int new_read_result = 0;
@@ -67,13 +54,11 @@ volatile int read_press[4] = {10,10,10,10}; // Array used to hold values display
 
 int main (void)
 {	
-	tcpointer4 = &(TC4->COUNT8);
-	tcpointer5 = &(TC5->COUNT8);
+	tcpointer = &(tc->COUNT8);
 	Simple_Clk_Init(); // Enable the Clocks for the SAMD20
 	initclks();
 	enable_eic();
 	enable_tc();
-	enable_tc5();
 	
 	int counter = 0;
 	
@@ -106,6 +91,9 @@ int main (void)
 	
 	while(1)
 	{
+		keypad_state_machine();
+		Integer_to_Array(speed); // Convert display_result into an Array
+		overallDisplay(); // Will Display the 4 Digit Number + Decimal Point on the 7-segment Displays
 				
 	}
 }
@@ -341,45 +329,22 @@ void enable_port(void)
 
 /* Configure the basic timer/counter to have a period of________ or a frequency of _________  */
 }
-
-//Timer Counter 4, Operates as the PID Interrupt, operating at 200 Hz
 void enable_tc(void)
 {
 	enable_port();
 	
 	/* Set up CTRLA */
-	tcpointer4->CTRLA.reg = (1u << 2); // set counter mode
-	tcpointer4->CTRLA.reg |= (0x6 << 8); // prescaler set to DIV256
-	tcpointer4->CTRLA.reg |= (1u << 12); // PRESCSYNC set to PRESC
-	tcpointer4->CTRLA.reg |= 0x2 << 5;
-	tcpointer4->PER.reg = 0x9C; // 155, makes the Frequency 200 Hz
+	tcpointer->CTRLA.reg = (1u << 2); // set counter mode
+	tcpointer->CTRLA.reg |= (0x6 << 8); // prescaler set to DIV64
+	tcpointer->CTRLA.reg |= (1u << 12); // PRESCSYNC set to PRESC
+	tcpointer->CTRLA.reg |= 0x2 << 5;
+	tcpointer->PER.reg = 0x9C;
 	
 	/*Enable TC*/
-	tcpointer4->CTRLA.reg |= 1 << 1; // Enable TC4
+	tcpointer->CTRLA.reg |= 1 << 1; // Enable TC4
 	
-	tcpointer4->INTENSET.reg = 0x1; // Enable the Overflow Interrupt
+	tcpointer->INTENSET.reg = 0x1; // Enable the Overflow Interrupt
 	NVIC->ISER[0] = (1 << 17); // Enables the Interrupt TC4
-	NVIC_SetPriority(TC4_IRQn, 1);
-	
-}
-
-// Timer Counter 5, Operates as the System Tick Interrupt, operating at 60 Hz
-void enable_tc5(void)
-{
-	
-	/* Set up CTRLA */
-	tcpointer5->CTRLA.reg = (1u << 2); // set counter mode
-	tcpointer5->CTRLA.reg |= (0x7 << 8); // prescaler set to DIV1024
-	tcpointer5->CTRLA.reg |= (1u << 12); // PRESCSYNC set to PRESC
-	tcpointer5->CTRLA.reg |= 0x2 << 5;
-	tcpointer5->PER.reg = 0x82; // Set to 130, makes the Frequency 60 Hz
-	
-	/*Enable TC*/
-	tcpointer5->CTRLA.reg |= 1 << 1; // Enable TC5
-	
-	tcpointer5->INTENSET.reg = 0x1; // Enable the Overflow Interrupt
-	NVIC->ISER[0] = (1 << 18); // Enables the Interrupt TC5
-	NVIC_SetPriority(TC5_IRQn, 2);
 	
 }
 
@@ -388,91 +353,9 @@ void TC4_Handler(void)
 	speed_old = (((eic_overflow * 400 + position_counter) * 200) * 60) / 380;
 	speed = (0.03093*(speed_old)) + ((0.9691)*speed_new);
 	speed_new = speed;
-	
-	if(read_press[0] != 10)
-	{
-		error = p_cmd - speed_old;
-		integral = integral + (error * 0.005);
-		increment = 0.028 * ((k_p * error) + (k_i * integral));	
-	}
-	
 	position_counter = 0;
 	eic_overflow = 0;
-	tcpointer4->INTFLAG.bit.OVF = 0x1; // Clear the Overflow Interrupt
-}
-
-void TC5_Handler(void)
-{
-	keypad_state_machine();
-	Integer_to_Array(speed); // Convert display_result into an Array
-	overallDisplay(); // Will Display the 4 Digit Number + Decimal Point on the 7-segment Displays
-	
-	switch(motor_state)
-	{
-		case idle_motor:
-		tcpointer4->CC[0].reg = 0;
-		tcpointer4->CC[1].reg = 0;
-		
-		if(read_press[0] == 1)
-		{
-			motor_state = accel;
-		}
-		else
-		{
-			motor_state = idle_motor;
-		}
-		tcpointer5->INTFLAG.bit.OVF = 0x1; // Clear the Overflow Interrupt
-		break;
-		
-		case accel:
-		p_cmd = 1500;
-		tcpointer4->CC[0].reg = increment;
-		tcpointer4->CC[1].reg = 0;
-		
-		if(speed < 1500)
-		{
-			motor_state = accel;
-		}
-		else if(speed >= 1500)
-		{
-			motor_state = speed_ctrl;
-		}
-		
-		tcpointer5->INTFLAG.bit.OVF = 0x1; // Clear the Overflow Interrupt
-		break;
-		
-		case speed_ctrl:
-		
-		if(read_press[0] == 0)
-		{
-			motor_state = decel;	
-		}
-		else
-		{
-			motor_state = speed_ctrl;
-		}
-		tcpointer5->INTFLAG.bit.OVF = 0x1; // Clear the Overflow Interrupt
-		break;
-		
-		case decel:
-		p_cmd = 0;
-		tcpointer4->CC[0].reg = increment;
-		tcpointer4->CC[1].reg = 0;
-		
-		
-		if(speed == 0)
-		{
-			motor_state = idle_motor;
-		}
-		else if(speed > 0)
-		{
-			motor_state = decel;
-		}
-		
-		tcpointer5->INTFLAG.bit.OVF = 0x1; // Clear the Overflow Interrupt
-		break;
-		
-	}
+	tcpointer->INTFLAG.bit.OVF = 0x1; // Clear the Overflow Interrupt
 }
 
 void enable_eic(void)
@@ -487,7 +370,6 @@ void enable_eic(void)
 	EIC->CTRL.reg = 0x2;  //enable EIC
 	
 	NVIC_EnableIRQ(EIC_IRQn);
-	NVIC_SetPriority(EIC_IRQn, 0);
 }
 
 void EIC_Handler(void)
@@ -524,11 +406,11 @@ void EIC_Handler(void)
 
 void initclks(void)
 {
-	PM->APBCMASK.reg = (1u << 12) | (1u << 13);
+	PM->APBCMASK.reg = (1u << 12);
 	
 	PM->APBAMASK.reg |= (1u << 6);
 		
-	uint32_t temp = 0x15;   		// ID for TC4  (see table 14-2)
+	temp = 0x15;   		// ID for ________ is __________  (see table 14-2)
 	temp |= 0<<8;         			//  Selection Generic clock generator 0
 	GCLK->CLKCTRL.reg = temp;   		//  Setup in the CLKCTRL register
 	GCLK->CLKCTRL.reg |= 0x1u << 14;    	// enable it.
@@ -540,13 +422,6 @@ void initclks(void)
 	GCLK->CLKCTRL.reg = temp;   			//  Setup in the CLKCTRL register
 	GCLK->CLKCTRL.reg |= 0x1u << 14;    // enable it.
 	
-	while(GCLK->STATUS.bit.SYNCBUSY){};
-		
-	temp = 0x15;   		// ID for TC5 (from table 14-2)
-	temp |= 0<<8;         				//  Selection Generic clock generator 0
-	GCLK->CLKCTRL.reg = temp;   			//  Setup in the CLKCTRL register
-	GCLK->CLKCTRL.reg |= 0x1u << 14;    // enable it.
-		
 	while(GCLK->STATUS.bit.SYNCBUSY){};
 		
 }
